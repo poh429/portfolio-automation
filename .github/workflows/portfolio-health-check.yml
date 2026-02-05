@@ -1,0 +1,167 @@
+name: Portfolio Health Check
+
+on:
+  schedule:
+    # 每日台北時間 14:00 (UTC 06:00) 執行
+    - cron: '0 6 * * *'
+  workflow_dispatch:  # 允許手動觸發
+
+jobs:
+  analyze-portfolio:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install yfinance pandas numpy requests beautifulsoup4 lxml
+      
+      - name: Create necessary directories
+        run: |
+          mkdir -p data/raw
+          mkdir -p data/analysis
+          mkdir -p docs
+      
+      - name: Fetch Taiwan stock data
+        run: |
+          python code/fetch_taiwan_stock_data.py
+        continue-on-error: true
+      
+      - name: Run Tang 16 Metrics Analysis
+        run: |
+          python -c "
+          import json
+          import sys
+          sys.path.insert(0, 'scripts/general')
+          from tang_16_metrics import transform
+          
+          # 讀取持倉
+          with open('data/config/portfolio_holdings.json', 'r', encoding='utf-8') as f:
+              portfolio = json.load(f)
+          
+          all_scores = {}
+          
+          # 分析台股
+          for ticker in portfolio.get('taiwan_stocks', {}).keys():
+              tw_ticker = f'{ticker}.TW'
+              print(f'分析 {tw_ticker}...')
+              result = transform({'ticker': tw_ticker, 'years': 3}, {})
+              if 'error' not in result:
+                  all_scores[ticker] = result
+          
+          # 分析美股
+          for ticker in portfolio.get('us_stocks', {}).keys():
+              print(f'分析 {ticker}...')
+              result = transform({'ticker': ticker, 'years': 3}, {})
+              if 'error' not in result:
+                  all_scores[ticker] = result
+          
+          # 儲存結果
+          with open('data/analysis/tang_scores.json', 'w', encoding='utf-8') as f:
+              json.dump(all_scores, f, ensure_ascii=False, indent=2)
+          
+          print(f'✅ 完成 {len(all_scores)} 支股票的唐石峻評分')
+          "
+        continue-on-error: true
+      
+      - name: Run Henry Supply Chain Risk Assessment
+        run: |
+          python -c "
+          import json
+          import sys
+          sys.path.insert(0, 'scripts/general')
+          from henry_supply_chain_risk import transform
+          
+          # 讀取持倉
+          with open('data/config/portfolio_holdings.json', 'r', encoding='utf-8') as f:
+              portfolio = json.load(f)
+          
+          all_risks = {}
+          
+          # 分析所有持股
+          all_tickers = list(portfolio.get('taiwan_stocks', {}).keys()) + list(portfolio.get('us_stocks', {}).keys())
+          
+          for ticker in all_tickers:
+              print(f'評估 {ticker} 風險...')
+              result = transform({'ticker': ticker}, {})
+              if 'error' not in result:
+                  all_risks[ticker] = result
+          
+          # 儲存結果
+          with open('data/analysis/risk_levels.json', 'w', encoding='utf-8') as f:
+              json.dump(all_risks, f, ensure_ascii=False, indent=2)
+          
+          print(f'✅ 完成 {len(all_risks)} 支股票的風險評估')
+          "
+        continue-on-error: true
+      
+      - name: Generate Portfolio Report
+        run: |
+          python code/generate_portfolio_report.py
+      
+      - name: Update Google Sheets
+        env:
+          GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+        run: |
+          python -c "
+          import json
+          import os
+          from google.oauth2.service_account import Credentials
+          from googleapiclient.discovery import build
+          
+          # 載入憑證
+          creds_json = os.environ['GOOGLE_SHEETS_CREDENTIALS']
+          creds_dict = json.loads(creds_json)
+          creds = Credentials.from_service_account_info(creds_dict)
+          
+          service = build('sheets', 'v4', credentials=creds)
+          
+          # 讀取待更新數據
+          with open('tmp/sheets_update_data.json', 'r', encoding='utf-8') as f:
+              data = json.load(f)
+          
+          spreadsheet_id = os.environ['SPREADSHEET_ID']
+          range_name = 'Analysis!A1'
+          
+          body = {'values': data['rows']}
+          
+          result = service.spreadsheets().values().update(
+              spreadsheetId=spreadsheet_id,
+              range=range_name,
+              valueInputOption='RAW',
+              body=body
+          ).execute()
+          
+          print(f'✅ 已更新 {result.get(\"updatedCells\")} 個儲存格')
+          "
+        continue-on-error: true
+      
+      - name: Commit and push if changed
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add -A
+          git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 自動更新持倉分析報告 $(date +'%Y-%m-%d %H:%M')" && git push)
+      
+      - name: Send Telegram notification (optional)
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            STATUS="${{ job.status }}"
+            MESSAGE="📊 持倉健康檢查執行完成%0A狀態: $STATUS%0A時間: $(date +'%Y-%m-%d %H:%M')"
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -d "chat_id=$TELEGRAM_CHAT_ID" \
+              -d "text=$MESSAGE"
+          fi
