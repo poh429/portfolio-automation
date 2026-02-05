@@ -1,0 +1,10 @@
+{
+  "taiwan_stocks": {
+    "2330": {"name": "台積電", "shares": 100, "cost_basis": 500},
+    "2454": {"name": "聯發科", "shares": 50, "cost_basis": 800}
+  },
+  "us_stocks": {
+    "AAPL": {"name": "Apple", "shares": 10, "cost_basis": 150},
+    "GOOGL": {"name": "Google", "shares": 5, "cost_basis": 120}
+  }
+}
