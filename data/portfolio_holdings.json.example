@@ -1,0 +1,61 @@
+{
+  "taiwan_stocks": {
+    "2330": {
+      "name": "台積電",
+      "shares": 10,
+      "cost_price": 600,
+      "sector": "半導體",
+      "notes": "護城河深厚的晶圓代工龍頭"
+    },
+    "2317": {
+      "name": "鴻海",
+      "shares": 50,
+      "cost_price": 100,
+      "sector": "電子製造",
+      "notes": "iPhone 組裝、AI 伺服器布局"
+    },
+    "2454": {
+      "name": "聯發科",
+      "shares": 20,
+      "cost_price": 800,
+      "sector": "IC 設計",
+      "notes": "手機晶片、AI 邊緣運算"
+    }
+  },
+  "us_stocks": {
+    "AAPL": {
+      "name": "Apple Inc.",
+      "shares": 5,
+      "cost_price": 150,
+      "sector": "Consumer Electronics",
+      "notes": "品牌護城河、生態系鎖定"
+    },
+    "MSFT": {
+      "name": "Microsoft Corporation",
+      "shares": 3,
+      "cost_price": 350,
+      "sector": "Software",
+      "notes": "雲端、AI、Office 訂閱"
+    },
+    "GOOGL": {
+      "name": "Alphabet Inc.",
+      "shares": 2,
+      "cost_price": 120,
+      "sector": "Internet",
+      "notes": "搜尋廣告壟斷、AI 領先"
+    },
+    "AMZN": {
+      "name": "Amazon.com Inc.",
+      "shares": 4,
+      "cost_price": 140,
+      "sector": "E-commerce & Cloud",
+      "notes": "AWS 現金牛、電商護城河"
+    }
+  },
+  "metadata": {
+    "last_updated": "2026-02-05",
+    "currency_tw": "TWD",
+    "currency_us": "USD",
+    "portfolio_name": "波克夏演算法投資組合"
+  }
+}
