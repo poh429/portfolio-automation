@@ -241,7 +241,8 @@ def main():
     print("📊 準備 Google Sheets 數據...")
     sheets_data = generator.prepare_sheets_data(results)
     
-    # 儲存 JSON 供後續使用
+    # 建立 tmp 目錄並儲存 JSON 供後續使用
+    os.makedirs('tmp', exist_ok=True)
     with open('tmp/sheets_update_data.json', 'w', encoding='utf-8') as f:
         json.dump({'rows': sheets_data}, f, ensure_ascii=False, indent=2)
     
